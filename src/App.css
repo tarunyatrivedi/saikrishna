@@ -1,38 +1,114 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
+const textValidator = (data) => {
+  if (data === "") {
+    return {
+      error: true,
+      helperText: "This field is required",
+    };
   }
-}
+  return { error: false, helperText: "" };
+};
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+const emailValidator = (data) => {
+  console.log("i am in mail");
+  const reg = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  if (data === "") {
+    return {
+      error: true,
+      helperText: "This field is required",
+    };
   }
-  to {
-    transform: rotate(360deg);
+  if (data.match(reg)) {
+    console.log("i got match");
+    return { error: false, helperText: "" };
   }
-}
+  return {
+    error: true,
+    helperText: "Please enter a valid email address",
+  };
+};
+// To check a password between 6 to 20 characters which contain at least one numeric digit, one uppercase and one lowercase letter
+const passwordValidator = (data) => {
+  const reg = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
+  if (data === "") {
+    return {
+      error: true,
+      helperText: "This field is required",
+    };
+  }
+  if (data.match(reg)) {
+    return { error: false, helperText: "" };
+  }
+  return {
+    error: true,
+    helperText: "Please enter a valid password",
+  };
+};
+
+const confirmPasswordValidator = (password, confirmPassword) => {
+  if (confirmPassword === "") {
+    return {
+      error: true,
+      helperText: "This field is required",
+    };
+  }
+  if (password !== confirmPassword) {
+    return {
+      error: true,
+      helperText: "Password doesn't match",
+    };
+  }
+  return { error: false, helperText: "" };
+};
+
+const validator = (data) => {
+  const result = { ...data };
+  let hasError = false;
+  Object.keys(data).forEach((element) => {
+    console.log("type of mine", element);
+    switch (element) {
+      case "text": {
+        const validation = textValidator(data[element].value);
+        hasError = validation.error;
+        result[element] = {
+          ...result[element],
+          ...validation,
+        };
+        break;
+      }
+      case "email": {
+        const validation = emailValidator(data[element].value);
+        hasError = validation.error;
+        result[element] = {
+          ...result[element],
+          ...validation,
+        };
+        break;
+      }
+      case "password": {
+        const validation = passwordValidator(data[element].value);
+        hasError = validation.error;
+        result[element] = {
+          ...result[element],
+          ...validation,
+        };
+        break;
+      }
+      case "confirmPassword": {
+        const validation = confirmPasswordValidator(
+          data.password.value,
+          data[element].value
+        );
+        hasError = validation.error;
+        result[element] = {
+          ...result[element],
+          ...validation,
+        };
+        break;
+      }
+      default:
+        result[element] = { ...result[element] };
+    }
+  });
+  return { hasError, result };
+};
+export default validator;

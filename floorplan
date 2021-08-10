@@ -1,0 +1,553 @@
+import React, { useEffect, useRef, useState } from 'react';
+import mapa from '../../Capture.PNG'
+import axios from "axios";
+import { fabric } from 'fabric'
+import socketIOClient from "socket.io-client";
+import { makeStyles, Grid, Button } from '@material-ui/core';
+import { base_ip } from "../../consts";
+import InputLabel from '@material-ui/core/InputLabel';
+import MenuItem from '@material-ui/core/MenuItem';
+import FormControl from '@material-ui/core/FormControl';
+import Select from '@material-ui/core/Select';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogTitle from '@material-ui/core/DialogTitle';
+
+const useStyles = makeStyles({
+  hidden: {
+    display: 'hidden'
+  },
+  image: {
+    minHeight: '1200px',
+    minWidth: '557px',
+    display: 'none'
+  },
+  center:{
+    display:"flex",
+    justifyContent:"center"
+  },
+
+  formControl: {
+    minWidth: '120px',
+    marginBottom: '30px',
+    maxHeight: '70px',
+    marginLeft: '50px'
+  },
+  menue: {
+    maxHeight: '70px'
+  },
+  Button: {
+    marginLeft: '50px'
+  },
+  totalSlots: {
+    fontSize:"3rem"
+  }
+
+})
+
+const getDashboardSummaryurl = `${base_ip}/api/sensors/get_dashboard_summary`;
+const getDashboardSummary = () => axios.get(getDashboardSummaryurl);
+
+export default function Maps() {
+  const classes = useStyles()
+  const [Smenu, setSmenu] = useState('none')
+  const [position, setPosition] = useState({x:0,y:0})
+  const image = useRef("img")
+  var canva = useRef(null);
+  const c = useRef("c");
+  var saved = useRef(null);
+  const [spot, setspot] = useState('')
+  let sensordata = []
+  let floordata1 = []
+  const [state, setstate] = useState([])
+  const [floordata, setFloordata] = useState([])
+  const [floor, setFloor] = useState('')
+  const [layoutid, setLayoutid] = useState('')
+  const [map, setmap] = useState([])
+  const [rtsensordata, setSensordata] = useState('')
+  const [openDialog, setOpenDialog] = useState(false);
+  const [show, setShow] = useState(false)
+  const [freeslot, setFreeslot] = useState('NA')
+  // const [latest, setlatest] = useState([])
+  let latest = []
+  let currcolor = 'green';
+  const color ={
+    0:'green',
+    1:'red'
+  }
+
+
+  const getsensor = async (id) => {
+    const response = await fetch(`${base_ip}/api/sensors/get_sensors_for_layout?layoutid=${id}`)
+    const jsondata = await response.json()
+    // console.log("Hari: sensordata", jsondata.data)
+    if (jsondata.status) {
+      sensordata = jsondata.data
+      // console.log(jsondata)
+      setstate(jsondata.data)
+    }
+    else {
+      console.log("Backend error in getting sensor data")
+    }
+  }
+
+  const getsensordata = async () => {
+    const response = await fetch(`${base_ip}/api/sensors/get_sensors`)
+    const jsondata = await response.json()
+    // console.log("Hari: sensordata", jsondata.data)
+    if (jsondata.status) {
+      console.log('sensorData',jsondata)
+      setSensordata(jsondata.data)
+    }
+    else {
+      console.log("Backend error in getting sensor data")
+    }
+  }
+
+  const Put_layout = async (layoutid, body, name) => {
+
+    const data = { body: body, layoutid: layoutid, name: name };
+    const response = await fetch(`${base_ip}/api/layouts/put_layout`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const jsondata = await response.json()
+
+    // console.log(jsondata) 
+
+  };
+
+  const getfloorplan = async () => {
+    const response = await fetch(`${base_ip}/api/layouts/get_layouts`)
+    const jsondata = await response.json()
+    // console.log("Hari: floordata", jsondata.data)
+    if (jsondata.status) {
+      floordata1 = jsondata.data
+      console.log('floorplan',jsondata)
+      setFloordata(jsondata.data)
+    }
+    else {
+      console.log("Backend error in getting floor data")
+    }
+  }
+
+  const get_latest_floordata = async (topics) => {
+    let topics_str = ""
+    topics.map((topic) => {
+      topics_str += "'" + topic + "',";
+    });
+    topics_str = topics_str.slice(0, -1);
+    // console.log(topics_str)
+    const response = await fetch(`${base_ip}/api/layouts/latest_layout?topics=${topics_str}`)
+    const jsondata = await response.json()
+    // console.log("Hari: latest topic data:", jsondata)
+    if (jsondata.status) {
+      if (jsondata.data.name == 'error') {
+        latest = ['empty']
+        console.log('happened')
+      }
+      else {
+        latest = jsondata.data
+
+      }
+    }
+    else {
+      latest = ['empty']
+    }
+  }
+
+  const getdefaultfloorplan = async () => {
+    const response = await fetch(`${base_ip}/api/defaultlayout/get_defaultlayout`)
+    const jsondata = await response.json()
+    // console.log("Hari: floordata", jsondata.data)
+    if (jsondata.status) {
+      floordata1 = jsondata.data
+      console.log('default hari floorplan',jsondata)
+      saved.current=jsondata.data[0].body;
+      load()
+    }
+    else {
+      console.log("Backend error in getting floor data")
+    }
+  }
+
+  const putdefaultlayout = async ( body, name) => {
+
+    const data = { body: body, name: name };
+    const response = await fetch(`${base_ip}/api/defaultlayout/put_defaultlayout`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const jsondata = await response.json()
+
+    // console.log(jsondata) 
+
+  };
+
+  useEffect(() => {
+    const userRole = localStorage.getItem("userRole")
+    if(userRole === 'user'){
+      setShow(false)
+    }
+    else{
+      setShow(true)
+    }
+    getdefaultfloorplan()
+    getfloorplan()
+    getsensordata()
+    const ENDPOINT = `${base_ip}/sensors`;
+    const socket = socketIOClient(ENDPOINT);
+    const ENDPOINT1 = `${base_ip}/freeslots`;
+    const socket1 = socketIOClient(ENDPOINT1);
+
+    socket.on("sensors", async (pay) => {
+      console.log(pay, "hari counting")
+      // getsensor()
+      update(pay)
+    })
+    socket1.on("freeslots", (pay) => {
+      console.log('payload is:', pay);
+      setFreeslot(pay.message)
+    });
+    const interval = setInterval(() => {
+        getDashboardSummary();
+    }, 1000);
+
+
+    canva.current = new fabric.Canvas(c.current)
+    const img = image.current
+    // console.log("format needed",mapa)
+    var imge = new fabric.Image(img, {
+      top: 0,
+      left: 0,
+    })
+    // canva.current.setBackgroundImage(imge)
+    canva.current.renderAll();
+
+    return () => {
+      socket.emit("leave")
+      socket1.emit('leave')
+      clearInterval(interval);
+    }
+  }, [])
+
+  const newMap = (e) => {
+    e.preventDefault()
+    let reader = new FileReader();
+    let file = e.target.files[0];
+    reader.onloadend = (event) => {
+
+      var imgObj = new Image();
+      imgObj.src = event.target.result;
+      imgObj.onload = function () {
+        var image = new fabric.Image(imgObj);
+        image.set({
+          scaleX: 900 / imgObj.width,
+          scaleY: 550 / imgObj.height
+        });
+        // image.filters.push(new fabric.Image.filters.Resize({scaleX: 0.2, scaleY: 0.2}));
+        // image.scaleToHeight(1400);
+        // image.scaleToWidth(700);
+        setmap(image)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const submit = (e) => {
+    e.preventDefault()
+    canva.current.setBackgroundImage(map)
+    canva.current.renderAll();
+    // console.log(map)
+  }
+  const handleChangespot = (e) => {
+    setspot(e.target.value)
+    // console.log(layoutid)
+    rtsensordata.map(sta => {
+      if (sta.topic == e.target.value) {
+        console.log("xxx", sta.message);
+        currcolor = color[sta.message]
+        
+      }
+    })
+    // console.log('rtsensordata:', rtsensordata)
+    var circle = new fabric.Circle({
+      radius: 12,
+      fill: currcolor,
+      // strokeWidth: 5,
+      left: 100,
+      top: 100,
+      hasControls: false,
+      // hasBorders:false,
+      // fill: 'white',
+    });
+    circle.name = e.target.value
+    canva.current.add(circle);
+
+  }
+
+  const load = () => {
+    canva.current.loadFromJSON(saved.current, function () {
+      canva.current.renderAll();
+    });
+  }
+  const save = () => {
+    var xyz = JSON.stringify(canva.current);
+    var addname = JSON.parse(xyz)
+    for (var i = 0; i < canva.current._objects.length; i++) {
+      addname.objects[i].name = canva.current._objects[i].name
+    }
+    var topics = []
+    for (var i = 0; i < canva.current._objects.length; i++) {
+      topics.push(canva.current._objects[i].name)
+    }
+    addname.topics = topics
+    saved.current = JSON.stringify(addname)
+    console.log("json format of saved image(body) is: ", addname)
+    floordata.map(flo => {
+      if (flo.name == floor) {
+        Put_layout(flo.layoutid, saved.current, floor);
+        console.log('data saved')
+      }
+    })
+  }
+
+  const update = (pay) => {
+    var objects = canva.current.getObjects()
+    // console.log("qwerty qwerty objects on canvas that are dynamic",objects)
+    objects.forEach(ele => {
+      console.log("yes hari", ele.name, pay.topic);
+      // if(ele.name==pay.topic){
+      if ("sensor1" == pay.topic) {
+        if (pay.message == '1') {
+          console.log("updating hari",ele  )
+          console.log(" hari correct....")
+          ele.set({ "fill": 'red' })
+          canva.current.renderAll();
+        }
+        else if (pay.message == '0') {
+          ele.set({ "fill": 'green' })
+          canva.current.renderAll();
+        }
+
+      }
+    });
+    console.log('saved on update')
+    save()
+  }
+
+
+  const remove = () => {
+    canva.current.remove(canva.current.getActiveObject())
+  }
+
+  const previous_handle_layout_change = () => {
+    // const handleChangefloor=(e)=>{
+    //     setFloor(e.target.value)
+    //     getfloorplan()
+    //     // console.log("floordata is:",floordata)
+    //     floordata.map(floor=>{
+    //       if(floor.name == e.target.value){
+    //         setLayoutid(floor.layoutid)
+    //         getsensor(floor.layoutid)
+    //         console.log('layoutid is:',floor.layoutid)
+    //       }
+    //     })
+    //     floordata.map(floor=>{
+    //       if(floor.name==e.target.value){
+    //         // console.log('latest state is:',state)
+    //         var loadthis=floor.body
+    //         canva.current.loadFromJSON(loadthis, function() {
+    //         canva.current.renderAll();
+    //         });
+    //         setTimeout(() => {
+    //         var objects=canva.current.getObjects()
+    //         console.log(objects)
+    //         console.log('latest state is:',state)
+    //           state.map(sta=>{
+    //             objects.map(obj=>{
+    //               if(sta.topic==obj.name){
+    //                 if(sta.message==1){
+    //                   obj.set({"fill":'red'})
+    //                   canva.current.renderAll();
+    //                 }
+    //                 else{
+    //                   obj.set({"fill":'green'})
+    //                   canva.current.renderAll();
+    //                 }
+    //               }
+    //             })
+    //           })
+    //           save()
+
+    //         }, 1000);
+
+    //       }
+    //     })
+    // }
+  }
+
+  const handle_layout_change = (e) => {
+
+    const happentwice = () => {
+      getsensordata();
+      setFloor(e.target.value);
+      getfloorplan();
+      floordata.map(floor => {
+        if (floor.name == e.target.value) {
+          setLayoutid(floor.layoutid);
+          getsensor(floor.layoutid);
+          // console.log('layoutid is:', floor.layoutid);
+
+          let body = JSON.parse(floor.body);
+          let topics = body.topics;
+
+          get_latest_floordata(topics);
+          let loadthis = floor.body
+          if (body.objects) {
+            body.objects.map(obj => {
+              // console.log(latest)
+              latest.map(lat => {
+                if (lat.topic == obj.name) {
+                  if (lat.message == '1') {
+                    obj.fill = 'red';
+                    console.log('changed');
+                  }
+                  else if (lat.topic == '0') {
+                    console.log('changed')
+                    obj.fill = 'green';
+                  }
+                  loadthis = JSON.stringify(body)
+                }
+              })
+
+            })
+          }
+          // console.log(loadthis);
+          canva.current.loadFromJSON(loadthis, function () {
+            canva.current.renderAll();
+          });
+
+        }
+      })
+    }
+    happentwice()
+    setTimeout(() => {
+      happentwice()
+    }, 500);
+  }
+
+  const handleRightClick = (e) => {
+    e.preventDefault()
+    
+    const objects = canva.current.getObjects()
+    const pointer = canva.current.getPointer(e)
+    setPosition({x:pointer.x,y:e.clientY});
+    if(floor){
+      for(var i = objects.length - 1; i >= 0; i--){
+        if (objects[i].containsPoint(pointer)) {
+          canva.current.setActiveObject(objects[i])
+          setSmenu('block')
+        }
+      }
+    }
+    return false;
+  }
+  
+  const setDefault = () => {
+    setOpenDialog(true)
+  }
+
+  const saveDefaultFloor = () => {
+    var xyz = JSON.stringify(canva.current);
+    var addname = JSON.parse(xyz)
+    for (var i = 0; i < canva.current._objects.length; i++) {
+      addname.objects[i].name = canva.current._objects[i].name
+    }
+    var topics = []
+    for (var i = 0; i < canva.current._objects.length; i++) {
+      topics.push(canva.current._objects[i].name)
+    }
+    addname.topics = topics
+    saved.current = JSON.stringify(addname)
+
+    putdefaultlayout(saved.current,floor);
+    setOpenDialog(false)
+  }
+
+  const sensorMenu = () => {
+    return(
+    <div style={{ zIndex: 100001 , position: 'absolute', display:Smenu , left:position.x,top:position.y }}>
+    <div style={{ background:'white', border:'2px solid black' , borderRadius:'2px' , padding:'8px', cursor:'pointer'}} 
+    onClick={()=>{setSmenu('none');console.log(canva.current.getActiveObjects()) ; remove()} }>
+      Delete Sensor
+    </div>
+    </div>
+  )}
+
+  return (
+    <div>
+      
+      <Grid
+        container
+        direction="row"
+        justify="center"
+        alignItems="center"
+      >
+        <FormControl className={classes.formControl}>
+          <InputLabel>Floor</InputLabel>
+          <Select
+            value={floor}
+            onChange={handle_layout_change}
+            className={classes.menue}
+          >
+            {floordata.map(floor => {
+              return (<MenuItem key={floor.layoutid} value={floor.name}>{floor.name}</MenuItem>)
+            })}
+          </Select>
+        </FormControl>
+
+        {show?(<span>
+          <FormControl className={classes.formControl}>
+          <InputLabel>Spot ID</InputLabel>
+          <Select
+            value={spot}
+            onChange={handleChangespot}
+            className={classes.menue}
+          >
+            {state.map(sensor => {
+              return (<MenuItem key={sensor.key} value={sensor.key}>{sensor.text}</MenuItem>)
+            })}
+          </Select>
+        </FormControl>
+        <Button className={classes.Button} onClick={load} >Load</Button>
+        <Button className={classes.Button} onClick={save}>Save</Button>
+        <Button className={classes.Button} onClick={setDefault}>Set as Default</Button>
+        </span>):(null)}
+      </Grid>
+        <span className={classes.totalSlots}>
+          Total Slots Available : {freeslot}
+      </span> 
+      <div onContextMenu={handleRightClick} width={1200} height={557} onClick={()=>{setSmenu('none')}} className={classes.center}>
+      <canvas ref={c} width={1200} height={557} />
+      {show?sensorMenu():null}
+      </div>
+      {show?(<span>
+        <img src={mapa} ref={image} id="image" className={classes.image}></img>
+      <form >
+        <input type="file" id="file" name="file" onChange={newMap} />
+        <input type="submit" onClick={submit} />
+      </form>
+      </span>):null}
+      <Dialog open={openDialog}>
+            <DialogTitle>Are you sure you want to select {floor} as default floor?</DialogTitle>
+            <DialogActions>
+              <Button onClick={saveDefaultFloor}>Yes</Button>
+              <Button onClick={()=>setOpenDialog(false)}>Cancel</Button>
+            </DialogActions>
+      </Dialog>
+    </div>
+  )
+}

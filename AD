@@ -1,0 +1,85 @@
+import React from 'react'
+
+import Radio from '@material-ui/core/Radio';
+import { makeStyles } from '@material-ui/core';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import TextField from '@material-ui/core/TextField';
+import { display, maxWidth } from '@material-ui/system';
+
+const useStyles = makeStyles({
+    root:{
+        display:"flex",
+        flexDirection:"column",
+        width:"100%"
+    },
+    inline:{
+        margin:"10px",
+        width:"100%",
+        display:"flex",
+        flexDirection:"row",
+        // justifyContent:"space-evenly"
+    },
+    right:{
+        margin:"10px",
+        width:"100%",
+        display:"flex",
+        flexDirection:"row",
+        justifyContent:"flex-start"
+    },
+    textField:{
+        marginLeft:"100px"
+    },
+    textFieldSmall:{
+        marginRight:"20px",
+        maxWidth:"100px"
+    },
+
+})
+
+const AutoDiscovery = () => {
+    const classes = useStyles()
+    const [disabled , setdisabled ] = React.useState({})
+    return (
+        <div className={classes.root}>
+            <div className={classes.right}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <span className={classes.textField}>
+                    <TextField className={classes.textFieldSmall} size="small" variant="outlined" id="standard-basic" label="Min" />
+                    <TextField className={classes.textFieldSmall} size="small" variant="outlined" id="standard-basic" label="Max" />
+                 </span>
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <TextField className={classes.textField} size="small" variant="outlined" id="standard-basic" label="Standard" />
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <TextField className={classes.textField} size="small" variant="outlined" id="standard-basic" label="Standard" />
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <TextField className={classes.textField} size="small" variant="outlined" id="standard-basic" label="Standard" />
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <TextField className={classes.textField} size="small" variant="outlined" id="standard-basic" label="Standard" />
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <TextField className={classes.textField} size="small" variant="outlined" id="standard-basic" label="Standard" />
+            </div>
+            <div className={classes.inline}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+                 <TextField className={classes.textField} size="small" variant="outlined" id="standard-basic" label="Standard" />
+            </div>
+            <div className={classes.right}>
+                <FormControlLabel value="autoDiscovery" control={<Radio color="primary" size="small" />} label="autoDiscovery" />
+            </div>
+        </div>
+    )
+}
+
+export default AutoDiscovery
